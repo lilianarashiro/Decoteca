@@ -129,6 +129,7 @@ function normalizeItem(raw) {
     types: strs(raw.types),
     brand: typeof raw.brand === 'string' ? clean(raw.brand) : '',
     location: typeof raw.location === 'string' ? clean(raw.location) : '',
+    notes: typeof raw.notes === 'string' ? raw.notes.trim() : '',
     height: num(raw.height),
     width: num(raw.width),
     depth: num(raw.depth),
@@ -312,7 +313,7 @@ function matches(item) {
   if (f.locations.size && !f.locations.has(item.location)) return false;
   const q = norm(state.query);
   if (q) {
-    const hay = norm([item.brand, item.location, ...item.categories, ...item.types].join(' '));
+    const hay = norm([item.brand, item.location, item.notes, ...item.categories, ...item.types].join(' '));
     if (!q.split(' ').every(word => hay.includes(word))) return false;
   }
   return true;
@@ -449,7 +450,7 @@ function openFilters() {
 function renderItem(item) {
   const isNew = !item;
   const draft = isNew
-    ? { id: uid(), photo: '', categories: [], types: [], brand: '', location: '', height: null, width: null, depth: null, favorite: false }
+    ? { id: uid(), photo: '', categories: [], types: [], brand: '', location: '', notes: '', height: null, width: null, depth: null, favorite: false }
     : structuredClone(item);
   let dirty = false;
 
@@ -491,6 +492,10 @@ function renderItem(item) {
             <div class="field">
               <label class="field-label" for="location">Localização</label>
               <div class="ac"><input id="location" class="line-input" autocomplete="off" maxlength="80" value="${esc(draft.location)}"></div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="notes">Observação</label>
+              <textarea id="notes" class="line-input" rows="3" maxlength="1000">${esc(draft.notes)}</textarea>
             </div>
             <p class="error" id="form-error" hidden></p>
             <div class="item-actions">
@@ -602,6 +607,7 @@ function renderItem(item) {
     [draft.height, draft.width, draft.depth] = dims;
     draft.brand = canonical($('#brand').value, distinctValues('brand', draft.id));
     draft.location = canonical($('#location').value, distinctValues('location', draft.id));
+    draft.notes = $('#notes').value.trim();
     const now = new Date().toISOString();
     draft.createdAt = draft.createdAt || now;
     draft.updatedAt = now;

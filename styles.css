@@ -31,7 +31,7 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-button, input { font: inherit; color: inherit; }
+button, input, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 [hidden] { display: none !important; }
 
@@ -365,6 +365,7 @@ button { cursor: pointer; }
 }
 
 .line-input:focus { background: #f0f0f0; }
+textarea.line-input { resize: vertical; min-height: 80px; line-height: 1.4; }
 .line-input.invalid { border-bottom-color: var(--danger); }
 
 .dims { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
