@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <title>Decoteca</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <a href="#/" class="app-title" data-app-name>Decoteca</a>
+    <div class="menu-wrap">
+      <button class="icon-btn icon-btn--plain" id="menu-btn" aria-label="Menu" aria-haspopup="true" aria-expanded="false">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+      </button>
+      <div class="menu" id="menu" hidden>
+        <button type="button" data-menu="export">Exportar dados</button>
+        <button type="button" data-menu="import">Importar dados</button>
+        <button type="button" data-menu="lists">Gerenciar categorias e tipos</button>
+        <hr>
+        <button type="button" data-menu="samples">Carregar exemplos</button>
+        <button type="button" data-menu="clear-samples">Remover exemplos</button>
+      </div>
+    </div>
+    <input type="file" id="import-input" accept="application/json,.json" hidden>
+  </header>
+
+  <main id="view"></main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
