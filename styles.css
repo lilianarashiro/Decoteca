@@ -353,6 +353,16 @@ button { cursor: pointer; }
 .fields { display: flex; flex-direction: column; gap: 26px; }
 .field { display: flex; flex-direction: column; gap: 10px; }
 .field-label { font-weight: 600; font-size: 1.05rem; }
+.field-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  color: var(--muted);
+  font-size: .85rem;
+  text-decoration: underline;
+}
 
 .line-input {
   width: 100%;
@@ -427,7 +437,17 @@ textarea.line-input { resize: vertical; min-height: 80px; line-height: 1.4; }
 .dlg h2 { margin: 0 0 14px; font-size: 1.2rem; }
 .dlg h3 { margin: 22px 0 10px; font-size: 1rem; }
 .dlg p { margin: 0 0 14px; line-height: 1.45; }
-.dlg-head { display: flex; justify-content: space-between; align-items: center; }
+.dlg-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin-top: -22px;
+  padding: 22px 0 12px;
+  background: var(--surface);
+}
 .dlg-head h2 { margin: 0; }
 .dlg-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
 
@@ -452,6 +472,7 @@ textarea.line-input { resize: vertical; min-height: 80px; line-height: 1.4; }
 .ml-list small { color: var(--muted); white-space: nowrap; }
 .ml-list .btn { min-height: 34px; padding: 0 10px; font-size: .85rem; }
 .ml-add { margin-top: 10px; }
+.dlg .ml-hint { color: var(--muted); font-size: .85rem; margin: -4px 0 8px; }
 
 /* ===== Aviso ===== */
 .toast {

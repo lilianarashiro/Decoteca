@@ -125,6 +125,7 @@ function normalizeItem(raw) {
   return {
     id: typeof raw.id === 'string' && raw.id ? raw.id : uid(),
     photo: raw.photo,
+    name: typeof raw.name === 'string' ? clean(raw.name) : '',
     categories: strs(raw.categories),
     types: strs(raw.types),
     brand: typeof raw.brand === 'string' ? clean(raw.brand) : '',
@@ -217,7 +218,7 @@ function askText(title, initial = '') {
         <h2>${esc(title)}</h2>
         <input name="v" class="text-input" value="${esc(initial)}" required maxlength="60" autocomplete="off">
         <div class="dlg-actions">
-          <button value="cancel" formnovalidate class="btn">Cancelar</button>
+          <button type="button" class="btn" data-close>Cancelar</button>
           <button value="ok" class="btn btn-primary">OK</button>
         </div>
       </form>`);
@@ -313,7 +314,7 @@ function matches(item) {
   if (f.locations.size && !f.locations.has(item.location)) return false;
   const q = norm(state.query);
   if (q) {
-    const hay = norm([item.brand, item.location, item.notes, ...item.categories, ...item.types].join(' '));
+    const hay = norm([item.name, item.brand, item.location, item.notes, ...item.categories, ...item.types].join(' '));
     if (!q.split(' ').every(word => hay.includes(word))) return false;
   }
   return true;
@@ -399,7 +400,7 @@ function renderGrid() {
 
   grid.innerHTML = list.length
     ? list.map(item => `
-        <a class="tile" href="#/item/${encodeURIComponent(item.id)}" aria-label="${esc(item.categories.join(', ') || 'Item')}">
+        <a class="tile" href="#/item/${encodeURIComponent(item.id)}" aria-label="${esc(item.name || item.categories.join(', ') || 'Item')}">
           <img src="${item.photo}" alt="" loading="lazy">
           ${item.favorite ? `<span class="tile-fav">${ICON.heart}</span>` : ''}
         </a>`).join('')
@@ -450,7 +451,7 @@ function openFilters() {
 function renderItem(item) {
   const isNew = !item;
   const draft = isNew
-    ? { id: uid(), photo: '', categories: [], types: [], brand: '', location: '', notes: '', height: null, width: null, depth: null, favorite: false }
+    ? { id: uid(), photo: '', name: '', categories: [], types: [], brand: '', location: '', notes: '', height: null, width: null, depth: null, favorite: false }
     : structuredClone(item);
   let dirty = false;
 
@@ -469,15 +470,19 @@ function renderItem(item) {
           </div>
           <form class="fields" id="item-form" novalidate>
             <div class="field">
-              <span class="field-label">Categoria</span>
+              <label class="field-label" for="name">Nome</label>
+              <input id="name" class="line-input" autocomplete="off" maxlength="100" value="${esc(draft.name)}">
+            </div>
+            <div class="field">
+              <div class="field-head"><span class="field-label">Categoria</span>${manageLink('categories')}</div>
               <div class="chips" id="cats"></div>
             </div>
             <div class="field">
-              <span class="field-label">Tipo</span>
+              <div class="field-head"><span class="field-label">Tipo</span>${manageLink('types')}</div>
               <div class="chips" id="types"></div>
             </div>
             <div class="field">
-              <label class="field-label" for="brand">Marca</label>
+              <div class="field-head"><label class="field-label" for="brand">Marca</label>${manageLink('brand')}</div>
               <div class="ac"><input id="brand" class="line-input" autocomplete="off" maxlength="80" value="${esc(draft.brand)}"></div>
             </div>
             <div class="field">
@@ -490,7 +495,7 @@ function renderItem(item) {
               <p class="error" id="dims-error" hidden>Use apenas números positivos (ex.: 12,5) ou deixe em branco.</p>
             </div>
             <div class="field">
-              <label class="field-label" for="location">Localização</label>
+              <div class="field-head"><label class="field-label" for="location">Localização</label>${manageLink('location')}</div>
               <div class="ac"><input id="location" class="line-input" autocomplete="off" maxlength="80" value="${esc(draft.location)}"></div>
             </div>
             <div class="field">
@@ -528,7 +533,7 @@ function renderItem(item) {
     }
   };
 
-  const renderChips = (el, key, label) => {
+  const renderChips = (el, key, addLabel) => {
     el.innerHTML = state.lists[key].map(v => {
       const on = draft[key].includes(v);
       return `<button type="button" class="chip ${on ? 'on' : ''}" data-v="${esc(v)}" aria-pressed="${on}">${esc(v)}</button>`;
@@ -537,7 +542,7 @@ function renderItem(item) {
       const chip = e.target.closest('.chip');
       if (!chip) return;
       if (chip.dataset.add !== undefined) {
-        const name = await askText(`Nova ${label}`);
+        const name = await askText(addLabel);
         if (!name) return;
         const value = addListValue(key, name);
         await saveLists();
@@ -547,13 +552,29 @@ function renderItem(item) {
         draft[key] = draft[key].includes(v) ? draft[key].filter(x => x !== v) : [...draft[key], v];
       }
       dirty = true;
-      renderChips(el, key, label);
+      renderChips(el, key, addLabel);
     };
   };
 
+  const renderAllChips = () => {
+    renderChips($('#cats'), 'categories', 'Nova categoria');
+    renderChips($('#types'), 'types', 'Novo tipo');
+  };
+
+  // Mantém o formulário em dia quando um valor é renomeado ou excluído em "Gerenciar listas"
+  listsChangeHandler = (sec, old, replacement) => {
+    if (sec?.kind === 'list') {
+      draft[sec.key] = swapValue(draft[sec.key], old, replacement);
+    } else if (sec?.kind === 'text') {
+      const input = $(`#${sec.key}`);
+      if (norm(input.value) === norm(old)) input.value = replacement;
+    }
+    renderAllChips();
+  };
+
   renderPhoto();
-  renderChips($('#cats'), 'categories', 'categoria');
-  renderChips($('#types'), 'types', 'tipo');
+  renderAllChips();
+  form.querySelectorAll('[data-manage]').forEach(btn => btn.addEventListener('click', () => openManageLists(btn.dataset.manage)));
   setupAutocomplete($('#brand'), () => distinctValues('brand', draft.id));
   setupAutocomplete($('#location'), () => distinctValues('location', draft.id));
 
@@ -607,6 +628,7 @@ function renderItem(item) {
     [draft.height, draft.width, draft.depth] = dims;
     draft.brand = canonical($('#brand').value, distinctValues('brand', draft.id));
     draft.location = canonical($('#location').value, distinctValues('location', draft.id));
+    draft.name = clean($('#name').value);
     draft.notes = $('#notes').value.trim();
     const now = new Date().toISOString();
     draft.createdAt = draft.createdAt || now;
@@ -626,83 +648,123 @@ function renderItem(item) {
   });
 }
 
-/* ===== Gerenciar categorias e tipos ===== */
-function openManageLists() {
-  const sections = [['categories', 'Categorias', 'categoria'], ['types', 'Tipos', 'tipo']];
+/* ===== Gerenciar listas ===== */
+// Categorias e tipos são listas próprias; marcas e localizações vêm dos itens cadastrados
+const MANAGED = [
+  { key: 'categories', title: 'Categorias', one: 'categoria', the: 'essa categoria', add: 'Nova categoria', kind: 'list' },
+  { key: 'types', title: 'Tipos', one: 'tipo', the: 'esse tipo', add: 'Novo tipo', kind: 'list' },
+  { key: 'brand', title: 'Marcas', one: 'marca', the: 'essa marca', kind: 'text', filter: 'brands' },
+  { key: 'location', title: 'Localizações', one: 'localização', the: 'essa localização', kind: 'text', filter: 'locations' },
+];
+
+let listsChangeHandler = null;
+
+function manageLink(key) {
+  return `<button type="button" class="link-btn" data-manage="${key}">Gerenciar</button>`;
+}
+
+function managedValues(sec) {
+  return sec.kind === 'list' ? state.lists[sec.key] : distinctValues(sec.key);
+}
+
+function itemHas(item, sec, value) {
+  return sec.kind === 'list' ? item[sec.key].includes(value) : norm(item[sec.key]) === norm(value);
+}
+
+// Troca um valor de uma lista por outro; com replacement vazio, só remove
+function swapValue(values, old, replacement) {
+  return uniqueKeepOrder(values.flatMap(v => (v === old ? (replacement ? [replacement] : []) : [v])));
+}
+
+async function replaceInItems(sec, old, replacement) {
+  const changed = state.items.filter(it => itemHas(it, sec, old));
+  const now = new Date().toISOString();
+  changed.forEach(it => {
+    it[sec.key] = sec.kind === 'list' ? swapValue(it[sec.key], old, replacement) : replacement;
+    it.updatedAt = now;
+  });
+  const filterSet = state.filters[sec.filter || sec.key];
+  if (filterSet.delete(old) && replacement) filterSet.add(replacement);
+  await db.putMany('items', changed);
+}
+
+function openManageLists(focusKey) {
   const d = openDialog(`
     <div class="dlg-body">
-      <div class="dlg-head"><h2>Categorias e tipos</h2><button type="button" class="btn" data-close>Fechar</button></div>
+      <div class="dlg-head"><h2>Gerenciar listas</h2><button type="button" class="btn" data-close>Fechar</button></div>
       <div id="ml"></div>
     </div>`, 'dlg-wide');
   d.addEventListener('close', refreshHome);
 
   const render = () => {
-    $('#ml', d).innerHTML = sections.map(([key, title]) => `
-      <h3>${title}</h3>
-      <ul class="ml-list">
-        ${state.lists[key].map((v, i) => `
-          <li>
-            <span>${esc(v)}</span>
-            <small>${plural(state.items.filter(it => it[key].includes(v)).length, 'item', 'itens')}</small>
-            <button type="button" class="btn" data-act="rename" data-key="${key}" data-i="${i}">Renomear</button>
-            <button type="button" class="btn btn-danger" data-act="delete" data-key="${key}" data-i="${i}">Excluir</button>
-          </li>`).join('')}
-      </ul>
-      <button type="button" class="btn ml-add" data-act="add" data-key="${key}">+ Adicionar</button>`).join('');
+    $('#ml', d).innerHTML = MANAGED.map(sec => {
+      const values = managedValues(sec);
+      return `
+        <h3 id="ml-${sec.key}">${sec.title}</h3>
+        ${sec.kind === 'text' ? '<p class="ml-hint">Valores já usados nos itens. Excluir apaga o valor desses itens.</p>' : ''}
+        ${values.length ? `
+        <ul class="ml-list">
+          ${values.map((v, i) => `
+            <li>
+              <span>${esc(v)}</span>
+              <small>${plural(state.items.filter(it => itemHas(it, sec, v)).length, 'item', 'itens')}</small>
+              <button type="button" class="btn" data-act="rename" data-key="${sec.key}" data-i="${i}">Renomear</button>
+              <button type="button" class="btn btn-danger" data-act="delete" data-key="${sec.key}" data-i="${i}">Excluir</button>
+            </li>`).join('')}
+        </ul>` : '<p class="ml-hint">Nada cadastrado ainda.</p>'}
+        ${sec.kind === 'list' ? `<button type="button" class="btn ml-add" data-act="add" data-key="${sec.key}">+ Adicionar</button>` : ''}`;
+    }).join('');
   };
 
   $('#ml', d).addEventListener('click', async e => {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
-    const key = btn.dataset.key;
-    const label = sections.find(s => s[0] === key)[2];
-    const list = state.lists[key];
-    const i = Number(btn.dataset.i);
-    const filterSet = state.filters[key];
+    const sec = MANAGED.find(s => s.key === btn.dataset.key);
+    const values = managedValues(sec);
+    const old = values[Number(btn.dataset.i)];
+    const notify = (...args) => listsChangeHandler?.(sec, ...args);
 
     if (btn.dataset.act === 'add') {
-      const name = await askText(`Nova ${label}`);
+      const name = await askText(sec.add);
       if (!name) return;
-      addListValue(key, name);
+      addListValue(sec.key, name);
       await saveLists();
+      notify();
     }
 
     if (btn.dataset.act === 'rename') {
-      const old = list[i];
-      const name = await askText(`Renomear ${label}`, old);
+      const name = await askText(`Renomear ${sec.one}`, old);
       if (!name || name === old) return;
-      const dup = list.find((v, j) => j !== i && norm(v) === norm(name));
+      const dup = values.find(v => v !== old && norm(v) === norm(name));
       const replacement = dup || name;
-      if (dup) list.splice(i, 1); else list[i] = name;
-      const changed = state.items.filter(it => it[key].includes(old));
-      const now = new Date().toISOString();
-      changed.forEach(it => {
-        it[key] = uniqueKeepOrder(it[key].map(v => (v === old ? replacement : v)));
-        it.updatedAt = now;
-      });
-      if (filterSet.delete(old)) filterSet.add(replacement);
-      await db.putMany('items', changed);
-      await saveLists();
+      if (sec.kind === 'list') {
+        const list = state.lists[sec.key];
+        const i = list.indexOf(old);
+        if (dup) list.splice(i, 1); else list[i] = name;
+        await saveLists();
+      }
+      await replaceInItems(sec, old, replacement);
+      notify(old, replacement);
     }
 
     if (btn.dataset.act === 'delete') {
-      const value = list[i];
-      const used = state.items.filter(it => it[key].includes(value));
-      const msg = used.length
-        ? `“${value}” está em ${plural(used.length, 'item', 'itens')}. Os itens continuam cadastrados, só perdem essa ${label}.`
-        : `“${value}” não está em nenhum item.`;
-      if (!(await confirmDanger(`Excluir ${label}?`, msg, 'Excluir'))) return;
-      list.splice(i, 1);
-      const now = new Date().toISOString();
-      used.forEach(it => { it[key] = it[key].filter(v => v !== value); it.updatedAt = now; });
-      filterSet.delete(value);
-      await db.putMany('items', used);
-      await saveLists();
+      const used = state.items.filter(it => itemHas(it, sec, old)).length;
+      const msg = used
+        ? `“${old}” está em ${plural(used, 'item', 'itens')}. Os itens continuam cadastrados, só perdem ${sec.the}.`
+        : `“${old}” não está em nenhum item.`;
+      if (!(await confirmDanger(`Excluir ${sec.one}?`, msg, 'Excluir'))) return;
+      if (sec.kind === 'list') {
+        state.lists[sec.key].splice(state.lists[sec.key].indexOf(old), 1);
+        await saveLists();
+      }
+      await replaceInItems(sec, old, '');
+      notify(old, '');
     }
     render();
   });
 
   render();
+  if (focusKey) $(`#ml-${focusKey}`, d)?.scrollIntoView({ block: 'start' });
 }
 
 /* ===== Exportar / Importar ===== */
@@ -781,18 +843,18 @@ async function importData(file) {
 
 /* ===== Itens de exemplo ===== */
 const SAMPLES = [
-  ['🎂', '#ffd9e2', ['Aniversário'], ['Para pendurar'], 'Festas & Cia', 'Armário do corredor', 30, 40, null],
-  ['🎈', '#dff1ff', ['Aniversário'], ['Para pendurar'], 'Festas & Cia', 'Armário do corredor', null, null, null],
-  ['🐰', '#fff3c9', ['Páscoa'], ['Impressão 3D'], 'Feito em casa', 'Caixa azul', 12, 7, 5],
-  ['🥚', '#e9f7df', ['Páscoa'], ['Toalha de mesa'], 'Tok&Stok', 'Gaveta da sala', null, 140, 220],
-  ['🌽', '#fff0d1', ['Festa Junina'], ['Para pendurar'], 'Loja do bairro', 'Caixa azul', null, null, null],
-  ['🔥', '#ffe2cc', ['Festa Junina'], ['Toalha de mesa'], 'Tok&Stok', 'Gaveta da sala', null, 150, 150],
-  ['🎃', '#ffe0c2', ['Halloween'], ['Impressão 3D'], 'Feito em casa', 'Prateleira da garagem', 15, 18, 18],
-  ['👻', '#ece6ff', ['Halloween'], ['Para pendurar'], 'Festas & Cia', 'Prateleira da garagem', 25, 20, null],
-  ['🎄', '#dcf2e3', ['Natal'], ['Impressão 3D'], 'Feito em casa', 'Caixa vermelha', 22, 14, 14],
-  ['⭐', '#fff5c4', ['Natal'], ['Para pendurar'], 'Loja do bairro', 'Caixa vermelha', 10, 10, 1.5],
-  ['🎅', '#ffdcdc', ['Natal'], ['Toalha de mesa'], 'Tok&Stok', 'Gaveta da sala', null, 160, 260],
-  ['☘️', '#dff5df', ["St. Patrick's"], ['Para pendurar', 'Impressão 3D'], 'Feito em casa', 'Caixa azul', 8, 8, 2],
+  ['Topo de bolo', '🎂', '#ffd9e2', ['Aniversário'], ['Para pendurar'], 'Festas & Cia', 'Armário do corredor', 30, 40, null],
+  ['Balões coloridos', '🎈', '#dff1ff', ['Aniversário'], ['Para pendurar'], 'Festas & Cia', 'Armário do corredor', null, null, null],
+  ['Coelho sorridente', '🐰', '#fff3c9', ['Páscoa'], ['Impressão 3D'], 'Feito em casa', 'Caixa azul', 12, 7, 5],
+  ['Toalha de ovos', '🥚', '#e9f7df', ['Páscoa'], ['Toalha de mesa'], 'Tok&Stok', 'Gaveta da sala', null, 140, 220],
+  ['Milho de pendurar', '🌽', '#fff0d1', ['Festa Junina'], ['Para pendurar'], 'Loja do bairro', 'Caixa azul', null, null, null],
+  ['Toalha da fogueira', '🔥', '#ffe2cc', ['Festa Junina'], ['Toalha de mesa'], 'Tok&Stok', 'Gaveta da sala', null, 150, 150],
+  ['Abóbora 3D', '🎃', '#ffe0c2', ['Halloween'], ['Impressão 3D'], 'Feito em casa', 'Prateleira da garagem', 15, 18, 18],
+  ['Fantasminha', '👻', '#ece6ff', ['Halloween'], ['Para pendurar'], 'Festas & Cia', 'Prateleira da garagem', 25, 20, null],
+  ['Árvore de Natal 3D', '🎄', '#dcf2e3', ['Natal'], ['Impressão 3D'], 'Feito em casa', 'Caixa vermelha', 22, 14, 14],
+  ['Estrela dourada', '⭐', '#fff5c4', ['Natal'], ['Para pendurar'], 'Loja do bairro', 'Caixa vermelha', 10, 10, 1.5],
+  ['Toalha do Papai Noel', '🎅', '#ffdcdc', ['Natal'], ['Toalha de mesa'], 'Tok&Stok', 'Gaveta da sala', null, 160, 260],
+  ['Trevo da sorte', '☘️', '#dff5df', ["St. Patrick's"], ['Para pendurar', 'Impressão 3D'], 'Feito em casa', 'Caixa azul', 8, 8, 2],
 ];
 
 function sampleImage(emoji, bg) {
@@ -811,10 +873,10 @@ function sampleImage(emoji, bg) {
 
 async function loadSamples() {
   const base = Date.now();
-  const items = SAMPLES.map(([emoji, bg, categories, types, brand, loc, height, width, depth], i) => {
+  const items = SAMPLES.map(([name, emoji, bg, categories, types, brand, loc, height, width, depth], i) => {
     const stamp = new Date(base - i * 1000).toISOString();
     return {
-      id: uid(), photo: sampleImage(emoji, bg), categories, types,
+      id: uid(), photo: sampleImage(emoji, bg), name, categories, types,
       brand: canonical(brand, distinctValues('brand')), location: canonical(loc, distinctValues('location')),
       height, width, depth, favorite: i % 5 === 0, sample: true, createdAt: stamp, updatedAt: stamp,
     };
@@ -882,6 +944,7 @@ function route() {
   const hash = location.hash.replace(/^#/, '') || '/';
   closeMenu();
   if (currentView === '/') state.homeScroll = window.scrollY;
+  listsChangeHandler = null;
 
   if (hash === '/novo') {
     currentView = hash;

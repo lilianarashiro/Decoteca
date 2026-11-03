@@ -46,7 +46,7 @@ Exporte de vez em quando como backup. Limpar os dados do navegador apaga o catá
 - **Nome do app:** constante `APP_NAME` no topo de `app.js` (e o `<title>` em `index.html`).
 - **Fonte e tamanho do título:** `--title-font` e `--title-size` em `styles.css`.
 - **Cores:** variáveis no topo de `styles.css`.
-- **Categorias e tipos:** dentro do app, em **⋮ → Gerenciar categorias e tipos**, ou com o botão **+ Nova** na tela do item.
+- **Categorias, tipos, marcas e localizações:** dentro do app, em **⋮ → Gerenciar listas**, ou no link **Gerenciar** ao lado de cada campo na tela do item. Ali você renomeia ou exclui valores, inclusive os criados por engano. Novas categorias e tipos também podem ser criados com o botão **+ Nova** na tela do item.
 
 ## Itens de exemplo
 
